@@ -14,9 +14,9 @@
 (def dim-scale   (vec (map / dim-screen dim-board)))
 (def loops-atom (atom 0))
 (def last-loop-time-atom (atom 0))
+(def avg-fps (atom 0))
  
 (defn fmap [f coll] (doall (map f coll)))
-
 
 (defn now-millis 
   "Get the current unix time in milliseconds"
@@ -32,6 +32,28 @@
       (.setColor (if (= state :dying) (color "gray") (color "white")))
       (.fillRect x y (dec (dim-scale 0)) (dec (dim-scale 1))))))
 
+
+(defn last-fps
+  "Get the last FPS"
+  []
+  (/ 1000.0 
+     (Math/abs (- (deref last-loop-time-atom) 
+                  (swap! last-loop-time-atom 
+                         (fn [_] (now-millis))
+                         )
+                  )))
+  )
+
+(defn avgfps 
+  "Calc the average via an accumulator"
+  [fps]
+  (/ 
+    (swap! avg-fps (fn [oldfps] 
+                     (- 
+                       (+ oldfps fps) 
+                       (/ oldfps 20.0)))) 
+    20.0))
+
 (defn render [g img bg stage]
   "Given a graphics g, img img, the bg, and the stage,
   render the stage onto the graphics after updating
@@ -45,14 +67,15 @@
   (swap! loops-atom inc)
   (.drawImage g img 0 0 nil)
   (.setColor g (color "white"))
-  (.drawString g (str (deref loops-atom)) 10 15)
-  (.drawString g (str 
-                   (format "%2.2f" (/ 1000.0 
-                      (Math/abs (- (deref last-loop-time-atom) 
-                         (swap! last-loop-time-atom 
-                                (fn [_] (now-millis))
-                                )
-                         )))) " fps") 10 30)
+  (let [fps (last-fps)
+        avg-fps (avgfps fps)]
+    (.drawString g (str (deref loops-atom)) 10 15)
+    (.drawString g (str 
+                     (format "%3.2f" fps) 
+                     "(" 
+                     (format "%3.0f" avg-fps)
+                     ") fps") 10 30)
+    )
   )
 
 
