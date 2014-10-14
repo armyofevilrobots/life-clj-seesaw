@@ -12,8 +12,17 @@
 (def dim-board   [ 90   90])
 (def dim-screen  [600  600])
 (def dim-scale   (vec (map / dim-screen dim-board)))
+(def loops-atom (atom 0))
+(def last-loop 0)
  
 (defn fmap [f coll] (doall (map f coll)))
+
+
+(defn now-millis 
+  "Get the current unix time in milliseconds"
+  []
+  (-> (java.util.Date.) .getTime))
+
 
 (defn render-cell [#^Graphics g cell]
   (let [[state x y] cell
@@ -24,13 +33,19 @@
       (.fillRect x y (dec (dim-scale 0)) (dec (dim-scale 1))))))
 
 (defn render [g img bg stage]
+  "Given a graphics g, img img, the bg, and the stage,
+  render the stage onto the graphics after updating
+  the stage with a new loop of conways game."
   (doto bg
     (.setColor (color "black"))
     (.fillRect 0 0 (dim-screen 0) (dim-screen 1)))
   (fmap (fn [col]
           (fmap #(when (not= :off (% 0))
                    (render-cell bg %)) col)) stage)
+  (swap! loops-atom inc)
   (.drawImage g img 0 0 nil)
+  (.setColor g (color "white"))
+  (.drawString g (str (deref loops-atom)) 10 15)
   )
 
 
@@ -63,12 +78,13 @@
        (for [y (range (dim-board 1))]
          [(if (< 50 (rand-int 100)) :on :off) x y])))
 
-(defn activity-loop [surface stage]
-  (while true
-    (swap! stage step)
-    (.repaint surface)))
 
-
+(defn activity-loop 
+  "The activity loop that runs for-evs"
+  [surface stage]
+    (while true
+      (swap! stage step)
+      (.repaint surface)))
 
 (defn -main []
   (let [stage (atom board)
